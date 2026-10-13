@@ -66,6 +66,17 @@ async function deleteExperiment(id, name) {
   }
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+
 
 function renderFilteredExperiments() {
   const query = searchInput ? searchInput.value.toLowerCase() : '';
@@ -94,39 +105,44 @@ function renderFilteredExperiments() {
   experimentsGrid.innerHTML = filtered.map(exp => {
     const isSelected = selectedExpIds.includes(exp.id);
     const sensoryTags = (exp.sensory_notes || []).map(note => 
-      `<span class="bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded text-[10px]">${note}</span>`
+      `<span class="bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(note)}</span>`
     ).join(' ');
+
+    const safeBeanName = escapeHtml(exp.bean_name || 'Unknown Bean');
+    const safeMethod = escapeHtml(exp.method || 'V60');
+    const safeRoast = escapeHtml(exp.roast_level || 'Medium');
+    const safeGrind = escapeHtml(exp.grind_size || '-');
+    const safeNotes = escapeHtml(exp.raw_notes || '');
 
     return `
       <div onclick="toggleSelect(${exp.id})" class="cursor-pointer bg-[#121215] border ${isSelected ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-500/[0.02]' : 'border-zinc-800/80'} rounded-2xl p-4 space-y-3 hover:border-zinc-700 transition-all flex flex-col justify-between">
         <div class="space-y-2.5">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h3 class="font-bold text-sm text-zinc-100 line-clamp-1">${exp.bean_name || 'Unknown Bean'}</h3>
+              <h3 class="font-bold text-sm text-zinc-100 line-clamp-1">${safeBeanName}</h3>
               <div class="flex items-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
-                <span class="text-amber-400 font-semibold">${exp.method || 'V60'}</span>
+                <span class="text-amber-400 font-semibold">${safeMethod}</span>
                 <span>•</span>
-                <span>${exp.roast_level || 'Medium'}</span>
+                <span>${safeRoast}</span>
               </div>
             </div>
             <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
-              <button onclick="deleteExperiment(${exp.id}, '${exp.bean_name || 'Eksperimen'}')" title="Hapus Eksperimen" class="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
+              <button onclick="deleteExperiment(${exp.id}, '${safeBeanName.replace(/'/g, "\\'")}')" title="Delete Experiment" class="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
                 🗑️
               </button>
               <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="toggleSelect(${exp.id})" class="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer">
             </div>
-
           </div>
 
           <div class="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-300 bg-[#09090b] p-2 rounded-xl border border-zinc-800/60 text-center mono">
-            <div><span class="text-[9px] text-zinc-500 block">Dosis</span>${exp.dose_grams || '-'}g</div>
-            <div><span class="text-[9px] text-zinc-500 block">Air</span>${exp.water_grams || '-'}g</div>
-            <div><span class="text-[9px] text-zinc-500 block">Rasio</span>${exp.ratio || '-'}</div>
+            <div><span class="text-[9px] text-zinc-500 block">Dose</span>${exp.dose_grams || '-'}g</div>
+            <div><span class="text-[9px] text-zinc-500 block">Water</span>${exp.water_grams || '-'}g</div>
+            <div><span class="text-[9px] text-zinc-500 block">Ratio</span>${escapeHtml(exp.ratio || '-')}</div>
           </div>
 
           <div class="flex items-center justify-between text-[11px] text-zinc-400 px-0.5">
-            <div>Suhu: <span class="text-zinc-200">${exp.water_temp_c ? exp.water_temp_c + '°C' : '-'}</span></div>
-            <div>Gilingan: <span class="text-zinc-200">${exp.grind_size || '-'}</span></div>
+            <div>Temp: <span class="text-zinc-200">${exp.water_temp_c ? exp.water_temp_c + '°C' : '-'}</span></div>
+            <div>Grind: <span class="text-zinc-200">${safeGrind}</span></div>
             ${exp.rating ? `<div class="text-amber-400 font-bold">★ ${exp.rating}/10</div>` : ''}
           </div>
 
@@ -136,11 +152,12 @@ function renderFilteredExperiments() {
         </div>
 
         <div class="text-[10px] text-zinc-500 border-t border-zinc-800/60 pt-2 line-clamp-2 italic">
-          "${exp.raw_notes}"
+          "${safeNotes}"
         </div>
       </div>
     `;
   }).join('');
+
 }
 
 // 2. Selection & Comparison Flow

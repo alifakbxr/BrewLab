@@ -22,7 +22,7 @@ class BrewExperiment(BrewExperimentBase, table=True):
 
 
 class RawBrewInput(SQLModel):
-    text: str = Field(..., description="Raw notes from users")
+    text: str = Field(..., max_length=2000, description="Raw notes from user, max 2000 characters")
 
 class CompareRequest(SQLModel):
     expreiment_id_a: int
