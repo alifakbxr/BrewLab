@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlmodel import Session, select
 from typing import List
 
 
 from database import create_db_and_tables, get_session
 from models import BrewExperiment, BrewExperimentBase, RawBrewInput, CompareRequest
-from ai import extract_brew_parameters, analyze_comparison
+from ai import extract_brew_parameters, analyze_comparison, generate_daily_recipe
 
 app = FastAPI(title="Brew API", version="0.1.0")
 
@@ -65,12 +65,6 @@ async def compare_experiments(payload: CompareRequest, session: Session = Depend
     if not exp_a or not exp_b:
         raise HTTPException(status_code=404, detail="Satu atau kedua eksperimen tidak ditemukan")
 
-    exp_a_dict = exp_a.dict()
-    exp_b_dict = exp_b.dict()
-
-    if not exp_a or not exp_b:
-        raise HTTPException(status_code=404, detail="Satu atau kedua eksperimen tidak ditemukan")
-
     dict_a = exp_a.model_dump()
     dict_b = exp_b.model_dump()
 
@@ -90,6 +84,40 @@ async def compare_experiments(payload: CompareRequest, session: Session = Depend
         "analysis": ai_analysis
     }
 
-    
+@app.get("/api/feed/daily-recipe")
+async def get_daily_recipe(session: Session = Depends(get_session)):
+    """
+    Menghasilkan resep harian berbasis preferensi histori seduhan user
+    """
 
+    all_experiments = session.exec(select(BrewExperiment)).all()
+    history = [exp.model_dump() for exp in all_experiments]
+    recipe = await generate_daily_recipe(history)
+    return recipe
+
+@app.get("/api/experiments/export/json")
+def export_experiments_json(session: Session = Depends(get_session)):
+    """
+    Export seluruh eksperimen dalam format Open Coffee Experiment Dataset
+    """
+
+    experiments = session.exec(select(BrewExperiment).order_by(BrewExperiment.created_at.desc())).all()
+    return experiments
+
+@app.post("/api/experiments/import/json")
+def import_experiments_json(items: List[BrewExperimentBase], session: Session = Depends(get_session)):
+    """
+    Import daftar resep / eksperimen dari file JSON komunitas
+    """
+
+    created_count = 0
+    for item in items:
+        exp = BrewExperiment(**item.model_dump())
+        session.add(exp)
+        created_count += 1
+
+    session.commit()
+    return {
+        "message": f"Berhasil mengimpor {created_count} eksperimen baru."
+    }
     

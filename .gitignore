@@ -4,3 +4,4 @@ __pycache__/
 .env
 .agents/
 .vscode/
+PROJECT_STATE.md
