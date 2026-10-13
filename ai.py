@@ -1,11 +1,15 @@
 import json
 import httpx
 import re
+import os
+from dotenv import load_dotenv
 from typing import Dict, List, Any
 from models import BrewExperimentBase
 
-OLLAMA_API_URL = "http://localhost:11434/api/chat"
-DEFAULT_MODEL = "gemma:latest"
+load_dotenv()
+
+OLLAMA_API_URL = os.getenv("OLLAMA_API_URL")
+DEFAULT_MODEL = os.getenv("MODEL_NAME", "gemma:latest")
 
 async def extract_brew_parameters(raw_text: str, model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """

@@ -1,8 +1,14 @@
+import os
+from dotenv import load_dotenv
 from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = "sqlite:///./brewlab.db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
