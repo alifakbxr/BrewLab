@@ -5,3 +5,4 @@ __pycache__/
 .agents/
 .vscode/
 PROJECT_STATE.md
+.db

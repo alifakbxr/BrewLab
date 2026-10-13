@@ -121,3 +121,16 @@ def import_experiments_json(items: List[BrewExperimentBase], session: Session = 
         "message": f"Berhasil mengimpor {created_count} eksperimen baru."
     }
     
+@app.delete('/api/experiments/{experiment_id}')
+def delete_experiments(experiment_id: int, session: Session = Depends(get_session)):
+    """
+    Menghapus satu eksperimen berdasarkan ID.
+    """
+    experiment = session.get(BrewExperiment, experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Eksperimen tidak ditemukan")
+
+    session.delete(experiment)
+    session.commit()
+    
+    return {"message": f"Eksperimen #{experiment_id} berhasil dihapus"}

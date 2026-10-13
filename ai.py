@@ -13,22 +13,57 @@ async def extract_brew_parameters(raw_text: str, model_name: str = DEFAULT_MODEL
     """
 
     system_prompt = (
-        "You are BrewLab, an expert coffe experiment data assistant"
-        "Extract structured coffe brewing parameters from the user's messy notes into a valid JSON object. \n"
-        "Return ONLY a raw JSON object with NO markdown formatting, No backticks, and NO conversational text. \n"
-        "The JSON must be have the folowing keys:\n"
-        "- bean_name (string or null)\n"
-        "- roast_level (Light, Medium, or Dark, or null)\n"
-        "- method (e.g, V60, Aeropress, French Press, Kalita, Espresso, or null)\n"
-        "- dose_grams (float or null)\n"
-        "- water_grams (float or null)\n"
-        "- ratio (string like 1:15 or null: calculate from water/dose if possible)\n"
-        "- water_temp_c (float in Celsius or null)\n"
-        "- grind_size (string or null, e.g. 'Medium Fine', '20 clicks)\n"
-        "- brew_time_seconds (integer total brew duration in seconds or null)\n"
-        "- sensory_notes (list of strings describing taste/aroma/body, e.g. ['fruity', 'bitter finish'])\n"
-        "- rating (integer 1-10 or null)"
+        "You are BrewLab, an intelligent coffee experiment assistant with deep Natural Language Understanding (NLU).\n"
+        "Your mission is to understand casual, conversational, human language (Indonesian or English) about coffee brewing and extract it into a structured JSON schema.\n\n"
+        "NATURAL LANGUAGE RULES:\n"
+        "1. Bean Name Detection (Implicit Entity Extraction):\n"
+        "   - Automatically detect coffee origins, varietals, farms, or processes from context (e.g. 'gayo wine', 'ethiopia guji', 'sidikalang', 'kintamani', 'toraja sapan', 'geisha', 'colombia supremo', 'kerinci', 'mandheling').\n"
+        "   - Never require the user to say 'beans:' or 'nama kopi:'. Always format the extracted name in proper Title Case (e.g. 'Gayo Wine', 'Sidikalang').\n"
+        "   - If no bean is mentioned at all, set to 'Unknown Bean'.\n\n"
+        "2. Conversational Number & Slang Understanding:\n"
+        "   - Understand Indonesian phrasing: 'takaran 1 banding 15' -> ratio: '1:15', 'sembilan puluh dua derajat' -> water_temp_c: 92.0.\n"
+        "   - Understand brew times: '2 menit 30 detik' or '2 setengah menit' -> brew_time_seconds: 150.\n"
+        "   - Understand ratings: 'kukasi nilai 8', 'skor 7 dari 10', 'bintang 4/5 (scale to 8/10)' -> rating integer.\n"
+        "   - Understand grind descriptions: 'sedikit kasar' -> 'Medium-Coarse', 'agak halus' -> 'Medium-Fine', 'halus banget' -> 'Fine'.\n\n"
+        "3. Smart Inference (Calculations):\n"
+        "   - If dose is 15g and ratio is '1:15', automatically calculate water_grams = 225.0 if water is not explicitly given.\n"
+        "   - If water is 225g and dose is 15g, calculate ratio = '1:15'.\n\n"
+        "4. Sensory Extraction:\n"
+        "   - Extract any taste, aroma, or texture sensations described in human words (e.g. 'rasa manis madu', 'asem seger lemon', 'pahit pekat', 'body tebel') into clean sensory tags.\n\n"
+        "EXAMPLES OF NATURAL LANGUAGE TO JSON:\n"
+        "Input: 'Aku baru seduh gayo wine 20 gram dengan ration 1:15 dengan gilingan sedikit kasar'\n"
+        "Output JSON:\n"
+        "{\n"
+        '  "bean_name": "Gayo Wine",\n'
+        '  "roast_level": "Medium",\n'
+        '  "method": "V60",\n'
+        '  "dose_grams": 20.0,\n'
+        '  "water_grams": 300.0,\n'
+        '  "ratio": "1:15",\n'
+        '  "water_temp_c": null,\n'
+        '  "grind_size": "Medium-Coarse",\n'
+        '  "brew_time_seconds": null,\n'
+        '  "sensory_notes": [],\n'
+        '  "rating": null\n'
+        "}\n\n"
+        "Input: 'Pagi ini coba seduh sidikalang pake v60 15g air 225ml suhu 90 derajat. Waktu seduh 2m 15s. Rasanya manis gula aren sama asem segar. Rating 8.5'\n"
+        "Output JSON:\n"
+        "{\n"
+        '  "bean_name": "Sidikalang",\n'
+        '  "roast_level": "Medium",\n'
+        '  "method": "V60",\n'
+        '  "dose_grams": 15.0,\n'
+        '  "water_grams": 225.0,\n'
+        '  "ratio": "1:15",\n'
+        '  "water_temp_c": 90.0,\n'
+        '  "grind_size": null,\n'
+        '  "brew_time_seconds": 135,\n'
+        '  "sensory_notes": ["manis gula aren", "asem segar"],\n'
+        '  "rating": 9\n'
+        "}\n\n"
+        "Return ONLY a valid JSON object matching this schema. NO markdown, NO text outside JSON."
     )
+
 
 
     payload = {
@@ -196,10 +231,10 @@ def clean_json_string(raw_str: str) -> str:
     
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_str)
     if match:
-        return match.group(1).strip
+        return match.group(1).strip()
 
-    start = raw_str.find('(')
-    end = raw_str.rfind(')')
+    start = raw_str.find('{')
+    end = raw_str.rfind('}')
 
     if start != -1 and end != -1:
         return raw_str[start:end+1]

@@ -46,6 +46,27 @@ async function loadExperiments() {
   }
 }
 
+async function deleteExperiment(id, name) {
+  if (!confirm(`Apakah Anda yakin ingin menghapus eksperimen "${name}"?`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/experiments/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+
+    // Hapus dari daftar seleksi jika sedang dipilih
+    selectedExpIds = selectedExpIds.filter(x => x !== id);
+    updateCompareBar();
+
+    // Reload data
+    await loadExperiments();
+  } catch (err) {
+    alert('Gagal menghapus eksperimen: ' + err.message);
+  }
+}
+
+
 function renderFilteredExperiments() {
   const query = searchInput ? searchInput.value.toLowerCase() : '';
   const selectedMethod = methodFilter ? methodFilter.value : '';
@@ -88,7 +109,13 @@ function renderFilteredExperiments() {
                 <span>${exp.roast_level || 'Medium'}</span>
               </div>
             </div>
-            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSelect(${exp.id})" class="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer mt-0.5">
+            <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+              <button onclick="deleteExperiment(${exp.id}, '${exp.bean_name || 'Eksperimen'}')" title="Hapus Eksperimen" class="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
+                🗑️
+              </button>
+              <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="toggleSelect(${exp.id})" class="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer">
+            </div>
+
           </div>
 
           <div class="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-300 bg-[#09090b] p-2 rounded-xl border border-zinc-800/60 text-center mono">
