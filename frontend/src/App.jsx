@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Coffee, Sparkles, Scale, Trash2, Download, Upload,
-  Search, RefreshCw, X, ArrowRight, Lightbulb, Stethoscope, Target, Check
+import { 
+  Coffee, Sparkles, Scale, Trash2, Download, Upload, 
+  Search, RefreshCw, X, ArrowRight, Lightbulb, Stethoscope, Target, Check,
+  Trophy, AlertTriangle, Plus, Package
 } from 'lucide-react';
+
 
 export default function App() {
   const [experiments, setExperiments] = useState([]);
@@ -25,10 +27,29 @@ export default function App() {
   const [compareModalOpen, setCompareModalOpen] = useState(false);
   const [comparisonResult, setComparisonResult] = useState(null);
 
+    // Active main view: 'lab' | 'champions' | 'beans'
+  const [activeTab, setActiveTab] = useState('lab');
+
+  // Bean Inventory States
+  const [beans, setBeans] = useState([]);
+  const [beansLoading, setBeansLoading] = useState(false);
+  const [newBeanName, setNewBeanName] = useState('');
+  const [newBeanRoast, setNewBeanRoast] = useState('Medium');
+  const [newBeanStock, setNewBeanStock] = useState(200);
+
+  // World Champions States
+  const [championRecipes, setChampionRecipes] = useState([]);
+  const [championsLoading, setChampionsLoading] = useState(false);
+  const [championFilter, setChampionFilter] = useState('');
+
+
   useEffect(() => {
     fetchExperiments();
     fetchDailyRecipe();
+    fetchBeans();
+    fetchChampionRecipes();
   }, []);
+
 
   const fetchExperiments = async () => {
     try {
@@ -198,40 +219,127 @@ export default function App() {
     return matchQuery && matchMethod;
   });
 
+    const fetchBeans = async () => {
+    setBeansLoading(true);
+    try {
+      const res = await fetch('/api/beans');
+      if (res.ok) setBeans(await res.json());
+    } catch (e) {
+      console.error('Error fetching beans:', e);
+    } finally {
+      setBeansLoading(false);
+    }
+  };
+
+  const fetchChampionRecipes = async () => {
+    setChampionsLoading(true);
+    try {
+      const res = await fetch('/api/recipes/champions');
+      if (res.ok) setChampionRecipes(await res.json());
+    } catch (e) {
+      console.error('Error fetching champions:', e);
+    } finally {
+      setChampionsLoading(false);
+    }
+  };
+
+  const seedBeansCatalog = async () => {
+    try {
+      const res = await fetch('/api/beans/seed-catalog', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message);
+      fetchBeans();
+    } catch (e) {
+      alert('Failed to load bean catalog: ' + e.message);
+    }
+  };
+
+  const updateStock = async (beanId, newStock) => {
+    try {
+      await fetch(`/api/beans/${beanId}/stock?stock_grams=${newStock}`, { method: 'PATCH' });
+      fetchBeans();
+    } catch (e) {
+      console.error('Failed to update stock:', e);
+    }
+  };
+
+  const deleteBean = async (beanId, beanName) => {
+    if (!confirm(`Delete ${beanName} from pantry?`)) return;
+    try {
+      await fetch(`/api/beans/${beanId}`, { method: 'DELETE' });
+      fetchBeans();
+    } catch (e) {
+      console.error('Failed to delete bean:', e);
+    }
+  };
+
+  const applyChampionRecipeToCapture = (champ) => {
+    setRawText(`Brewed ${champ.bean_name} using ${champ.method} following ${champ.barista}'s (${champ.achievement}) method. Used ${champ.dose_grams}g coffee to ${champ.water_grams}g water (ratio ${champ.ratio}) at ${champ.water_temp_c}°C with ${champ.grind_size} grind. Target brew time ${champ.brew_time_target}. Technique: ${champ.technique_notes}.`);
+    setActiveTab('lab');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
 
       {/* Top Navbar */}
       <header className="border-b border-zinc-800/80 bg-[#0c0c0e]/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-700/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
-              <Coffee className="w-5 h-5" />
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('lab')}>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-600/20 ring-1 ring-amber-400/30">
+              <Coffee className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight">BrewLab</span>
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  Local AI
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400">Open-Source Coffee Experiment Assistant</p>
+              <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                BrewLab <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">AI Experiment Lab</span>
+              </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 transition-all flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Import</span>
+          {/* Primary View Navigation Tabs */}
+          <nav className="flex items-center gap-1.5 p-1 bg-zinc-900/90 border border-zinc-800 rounded-xl">
+            <button 
+              onClick={() => setActiveTab('lab')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'lab' ? 'bg-amber-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'}`}>
+              <Coffee className="w-3.5 h-3.5" />
+              <span>Lab</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('champions')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'champions' ? 'bg-amber-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'}`}>
+              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Champions</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-yellow-400/20 text-yellow-300 font-bold">{championRecipes.length}</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('beans')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'beans' ? 'bg-amber-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'}`}>
+              <Package className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Pantry</span>
+              {beans.some(b => b.stock_grams < 30) && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              )}
+            </button>
+          </nav>
+
+          {/* Dataset Action Tools */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button 
+              onClick={handleExport}
+              title="Export JSON Dataset"
+              className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:bg-zinc-800/80 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer">
+              <Download className="w-3.5 h-3.5 text-zinc-400" /> Export
+            </button>
+            <label 
+              title="Import JSON Dataset"
+              className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:bg-zinc-800/80 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer">
+              <Upload className="w-3.5 h-3.5 text-zinc-400" /> Import
               <input type="file" accept=".json" onChange={handleImport} className="hidden" />
             </label>
-            <button onClick={handleExport} className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 transition-all flex items-center gap-1.5">
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Dataset</span>
-            </button>
           </div>
         </div>
       </header>
+
 
       {/* Mobile Tab Switcher */}
       <div className="lg:hidden max-w-7xl mx-auto px-4 pt-4 w-full">
@@ -249,188 +357,395 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main Grid Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8 w-full flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-          {/* Left Column: Capture Notebook & Daily Feed */}
-          <div className={`space-y-6 lg:col-span-5 ${mobileTab === 'capture' ? 'block' : 'hidden lg:block'}`}>
-
-            {/* Pillar 1: Capture Card */}
-            <section className="bg-[#121215] border border-zinc-800/90 rounded-2xl p-5 sm:p-6 shadow-xl relative">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
-                    <span>📝</span> Capture Messy Notes
-                  </h2>
-                  <p className="text-xs text-zinc-400">Natural language input. AI extracts structured parameters automatically.</p>
-                </div>
-                <span className="text-[10px] mono bg-zinc-800/80 text-zinc-400 px-2 py-0.5 rounded">Pillar 1</span>
-              </div>
-
-              <form onSubmit={handleCapture} className="space-y-3">
-                <textarea
-                  rows={4}
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder="e.g. Brewed Gayo Wine 15g with 225g water at 92C on V60. Grind medium fine 18 clicks. Time 2m 30s. Bright acidity, winey aroma, sweet finish. Rating 8.5/10."
-                  className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-xl p-3.5 text-xs sm:text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 transition-all leading-relaxed"
-                />
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-medium text-zinc-400 truncate max-w-[200px]">{captureStatus}</span>
-                  <button
-                    type="submit"
-                    disabled={isCapturing || !rawText.trim()}
-                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer">
-                    {isCapturing ? 'Extracting with AI...' : 'Extract & Save'}
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            {/* Daily Feed Card */}
-            <section className="bg-gradient-to-b from-[#161412] to-[#121215] border border-amber-900/30 rounded-2xl p-5 sm:p-6 shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-xs font-bold text-amber-200 uppercase tracking-wider">Daily Recipe Feed</h3>
-                </div>
-                <button
-                  onClick={fetchDailyRecipe}
-                  disabled={feedLoading}
-                  className="text-[11px] text-amber-400/80 hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer">
-                  <RefreshCw className={`w-3 h-3 ${feedLoading ? 'animate-spin' : ''}`} /> Refresh
-                </button>
-              </div>
-
-              {dailyRecipe && (
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-100">{dailyRecipe.title || 'Specialty Daily Brew'}</h4>
-                    <p className="text-xs text-amber-400/90 font-medium">{dailyRecipe.recommended_bean || dailyRecipe.recommendation_bean || 'Single Origin'}</p>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 bg-[#09090b]/80 border border-zinc-800/60 p-2.5 rounded-xl text-center text-xs mono">
-                    <div>
-                      <div className="text-[10px] text-zinc-500">Dose / Water</div>
-                      <div className="font-bold text-zinc-200">{dailyRecipe.dose_grams}g / {dailyRecipe.water_grams}g</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-zinc-500">Temp</div>
-                      <div className="font-bold text-zinc-200">{dailyRecipe.water_temp_c}°C</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-zinc-500">Method</div>
-                      <div className="font-bold text-zinc-200">{dailyRecipe.method || 'V60'}</div>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-zinc-300 leading-relaxed italic bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/40">
-                    🎯 Flavor: {dailyRecipe.flavor_profile_target || '-'} | Tip: {dailyRecipe.pro_tip || '-'}
-                  </p>
-
-                  <button
-                    onClick={applyDailyRecipeToCapture}
-                    className="w-full py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5">
-                    Use This Recipe in Capture Form <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </section>
-
-          </div>
-
-          {/* Right Column: Filter Bar & Experiments Grid */}
-          <div className={`space-y-4 lg:col-span-7 ${mobileTab === 'experiments' ? 'block' : 'hidden lg:block'}`}>
-
-            {/* Filter Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#121215] border border-zinc-800/90 rounded-2xl p-4">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-56">
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search bean or notes..."
-                    className="bg-[#09090b] border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/60 w-full"
-                  />
-                </div>
-                <select
-                  value={selectedMethod}
-                  onChange={(e) => setSelectedMethod(e.target.value)}
-                  className="bg-[#09090b] border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-amber-500/60">
-                  <option value="">All Methods</option>
-                  <option value="V60">V60</option>
-                  <option value="Aeropress">Aeropress</option>
-                  <option value="Kalita">Kalita</option>
-                  <option value="French Press">French Press</option>
-                  <option value="Espresso">Espresso</option>
-                </select>
-              </div>
-              <span className="text-xs text-zinc-400 font-medium whitespace-nowrap self-end sm:self-center">
-                {filteredExperiments.length} experiments
+      {/* Global Low Stock Notification Banner */}
+      {beans.filter(b => b.stock_grams < 30).length > 0 && (
+        <div className="bg-gradient-to-r from-red-950/40 via-amber-950/30 to-red-950/40 border-b border-red-500/20 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 animate-bounce" />
+              <span>
+                <strong>Low Bean Stock Alert:</strong> {beans.filter(b => b.stock_grams < 30).map(b => `${b.name} (${b.stock_grams}g left)`).join(', ')}.
               </span>
             </div>
+            <button 
+              onClick={() => setActiveTab('beans')}
+              className="text-[11px] underline text-amber-300 hover:text-white font-semibold cursor-pointer">
+              Manage Stock &rarr;
+            </button>
+          </div>
+        </div>
+      )}
 
-            {/* Experiment Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {filteredExperiments.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-zinc-500 border border-dashed border-zinc-800 rounded-2xl p-6">
-                  <p className="text-xs">No matching experiments found.</p>
+
+      {/* Main Grid Workspace */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8 w-full flex-1">
+        {activeTab === 'lab' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            {/* Left Column: Capture Notebook & Daily Feed */}
+            <div className={`space-y-6 lg:col-span-5 ${mobileTab === 'capture' ? 'block' : 'hidden lg:block'}`}>
+
+              {/* Pillar 1: Capture Card */}
+              <section className="bg-[#121215] border border-zinc-800/90 rounded-2xl p-5 sm:p-6 shadow-xl relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h2 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                      <span>📝</span> Capture Messy Notes
+                    </h2>
+                    <p className="text-xs text-zinc-400">Natural language input. AI extracts structured parameters automatically.</p>
+                  </div>
+                  <span className="text-[10px] mono bg-zinc-800/80 text-zinc-400 px-2 py-0.5 rounded">Pillar 1</span>
                 </div>
-              ) : (
-                filteredExperiments.map(exp => {
-                  const isSelected = selectedIds.includes(exp.id);
-                  return (
-                    <div
-                      key={exp.id}
-                      onClick={() => toggleSelect(exp.id)}
-                      className={`cursor-pointer bg-[#121215] border ${isSelected ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-500/[0.02]' : 'border-zinc-800/80'} rounded-2xl p-4 space-y-3 hover:border-zinc-700 transition-all flex flex-col justify-between`}>
 
+                <form onSubmit={handleCapture} className="space-y-3">
+                  <textarea
+                    rows={4}
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    placeholder="e.g. Brewed Gayo Wine 15g with 225g water at 92C on V60. Grind medium fine 18 clicks. Time 2m 30s. Bright acidity, winey aroma, sweet finish. Rating 8.5/10."
+                    className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-xl p-3.5 text-xs sm:text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 transition-all leading-relaxed"
+                  />
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-medium text-zinc-400 truncate max-w-[200px]">{captureStatus}</span>
+                    <button
+                      type="submit"
+                      disabled={isCapturing || !rawText.trim()}
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer">
+                      {isCapturing ? 'Extracting with AI...' : 'Extract & Save'}
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              {/* Daily Feed Card */}
+              <section className="bg-gradient-to-b from-[#161412] to-[#121215] border border-amber-900/30 rounded-2xl p-5 sm:p-6 shadow-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <h3 className="text-xs font-bold text-amber-200 uppercase tracking-wider">Daily Recipe Feed</h3>
+                  </div>
+                  <button
+                    onClick={fetchDailyRecipe}
+                    disabled={feedLoading}
+                    className="text-[11px] text-amber-400/80 hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer">
+                    <RefreshCw className={`w-3 h-3 ${feedLoading ? 'animate-spin' : ''}`} /> Refresh
+                  </button>
+                </div>
+
+                {dailyRecipe && (
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-100">{dailyRecipe.title || 'Specialty Daily Brew'}</h4>
+                      <p className="text-xs text-amber-400/90 font-medium">{dailyRecipe.recommended_bean || dailyRecipe.recommendation_bean || 'Single Origin'}</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 bg-[#09090b]/80 border border-zinc-800/60 p-2.5 rounded-xl text-center text-xs mono">
+                      <div>
+                        <div className="text-[10px] text-zinc-500">Dose / Water</div>
+                        <div className="font-bold text-zinc-200">{dailyRecipe.dose_grams}g / {dailyRecipe.water_grams}g</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-zinc-500">Temp</div>
+                        <div className="font-bold text-zinc-200">{dailyRecipe.water_temp_c}°C</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-zinc-500">Method</div>
+                        <div className="font-bold text-zinc-200">{dailyRecipe.method || 'V60'}</div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-zinc-300 leading-relaxed italic bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/40">
+                      🎯 Flavor: {dailyRecipe.flavor_profile_target || '-'} | Tip: {dailyRecipe.pro_tip || '-'}
+                    </p>
+
+                    <button
+                      onClick={applyDailyRecipeToCapture}
+                      className="w-full py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5">
+                      Use This Recipe in Capture Form <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </section>
+
+            </div>
+
+            {/* Right Column: Filter Bar & Experiments Grid */}
+            <div className={`space-y-4 lg:col-span-7 ${mobileTab === 'experiments' ? 'block' : 'hidden lg:block'}`}>
+
+              {/* Filter Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#121215] border border-zinc-800/90 rounded-2xl p-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-56">
+                    <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search bean or notes..."
+                      className="bg-[#09090b] border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/60 w-full"
+                    />
+                  </div>
+                  <select
+                    value={selectedMethod}
+                    onChange={(e) => setSelectedMethod(e.target.value)}
+                    className="bg-[#09090b] border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-amber-500/60">
+                    <option value="">All Methods</option>
+                    <option value="V60">V60</option>
+                    <option value="Aeropress">Aeropress</option>
+                    <option value="Kalita">Kalita</option>
+                    <option value="French Press">French Press</option>
+                    <option value="Espresso">Espresso</option>
+                  </select>
+                </div>
+                <span className="text-xs text-zinc-400 font-medium whitespace-nowrap self-end sm:self-center">
+                  {filteredExperiments.length} experiments
+                </span>
+              </div>
+
+              {/* Experiment Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {filteredExperiments.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-zinc-500 border border-dashed border-zinc-800 rounded-2xl p-6">
+                    <p className="text-xs">No matching experiments found.</p>
+                  </div>
+                ) : (
+                  filteredExperiments.map(exp => {
+                    const isSelected = selectedIds.includes(exp.id);
+                    return (
+                      <div
+                        key={exp.id}
+                        onClick={() => toggleSelect(exp.id)}
+                        className={`cursor-pointer bg-[#121215] border ${isSelected ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-500/[0.02]' : 'border-zinc-800/80'} rounded-2xl p-4 space-y-3 hover:border-zinc-700 transition-all flex flex-col justify-between`}>
+
+                        <div className="space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-bold text-sm text-zinc-100 line-clamp-1">{exp.bean_name || 'Unknown Bean'}</h3>
+                              <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
+                                <span className="text-amber-400 font-semibold">{exp.method || 'V60'}</span>
+                                <span>•</span>
+                                <span>{exp.roast_level || 'Medium'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => handleDelete(exp.id, exp.bean_name, e)}
+                                title="Delete Experiment"
+                                className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(exp.id)}
+                                className="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-300 bg-[#09090b] p-2 rounded-xl border border-zinc-800/60 text-center mono">
+                            <div><span className="text-[9px] text-zinc-500 block">Dose</span>{exp.dose_grams || '-'}g</div>
+                            <div><span className="text-[9px] text-zinc-500 block">Water</span>{exp.water_grams || '-'}g</div>
+                            <div><span className="text-[9px] text-zinc-500 block">Ratio</span>{exp.ratio || '-'}</div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-zinc-400 px-0.5">
+                            <div>Temp: <span className="text-zinc-200">{exp.water_temp_c ? `${exp.water_temp_c}°C` : '-'}</span></div>
+                            <div>Grind: <span className="text-zinc-200">{exp.grind_size || '-'}</span></div>
+                            {exp.rating && <div className="text-amber-400 font-bold">★ {exp.rating}/10</div>}
+                          </div>
+
+                          {exp.sensory_notes && exp.sensory_notes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {exp.sensory_notes.map((note, idx) => (
+                                <span key={idx} className="bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded text-[10px]">
+                                  {note}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-[10px] text-zinc-500 border-t border-zinc-800/60 pt-2 line-clamp-2 italic">
+                          "{exp.raw_notes}"
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+                {/* TAB 2: WORLD CHAMPION RECIPES ARCHIVE (2000 - 2026) */}
+        {activeTab === 'champions' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#121215] border border-zinc-800/90 rounded-2xl p-5">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  World Champions & Legend Baristas Archive
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Master techniques from the inaugural WBC 2000 in Monte Carlo to the cutting edge of modern specialty brewing.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={championFilter} 
+                  onChange={(e) => setChampionFilter(e.target.value)}
+                  placeholder="Filter champion or method..."
+                  className="bg-[#09090b] border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/60"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {championRecipes
+                .filter(c => !championFilter || c.barista.toLowerCase().includes(championFilter.toLowerCase()) || c.title.toLowerCase().includes(championFilter.toLowerCase()) || c.method.toLowerCase().includes(championFilter.toLowerCase()))
+                .map((champ) => (
+                  <div key={champ.id} className="bg-[#121215] border border-zinc-800/80 hover:border-amber-500/50 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition-all group">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                            {champ.year} • {champ.method}
+                          </span>
+                          <h3 className="text-sm font-bold text-white mt-1.5 group-hover:text-amber-300 transition-colors">
+                            {champ.title}
+                          </h3>
+                          <p className="text-xs font-semibold text-zinc-300">{champ.barista}</p>
+                          <p className="text-[11px] text-zinc-500">{champ.achievement}</p>
+                        </div>
+                      </div>
+
+                      {/* Specs Matrix */}
+                      <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 text-[11px]">
+                        <div>
+                          <span className="text-zinc-500 block text-[9px] uppercase">Dose/Water</span>
+                          <span className="font-semibold text-zinc-200">{champ.dose_grams}g / {champ.water_grams}g</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 block text-[9px] uppercase">Ratio / Temp</span>
+                          <span className="font-semibold text-zinc-200">{champ.ratio} @ {champ.water_temp_c}°C</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 block text-[9px] uppercase">Grind / Time</span>
+                          <span className="font-semibold text-zinc-200">{champ.grind_size} ({champ.brew_time_target})</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <p className="text-zinc-400 text-[11px] leading-relaxed">
+                          <strong className="text-zinc-300">Technique:</strong> {champ.technique_notes}
+                        </p>
+                        <p className="text-amber-300/90 text-[11px] italic bg-amber-950/20 p-2 rounded-lg border border-amber-500/10">
+                          &ldquo;{champ.pro_tip}&rdquo;
+                        </p>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => applyChampionRecipeToCapture(champ)}
+                      className="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                      Brew This Champion Recipe <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+                {/* TAB 3: BEAN PANTRY & STOCK MANAGEMENT */}
+        {activeTab === 'beans' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#121215] border border-zinc-800/90 rounded-2xl p-5">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Package className="w-5 h-5 text-emerald-400" />
+                  Coffee Bean Pantry & Inventory
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Track remaining grams, roast profiles, and get low-stock replenishment warnings automatically.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={seedBeansCatalog}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  Load Curated World Catalog
+                </button>
+              </div>
+            </div>
+
+            {beans.length === 0 ? (
+              <div className="text-center py-16 bg-[#121215] border border-zinc-800/90 rounded-2xl p-6">
+                <Package className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                <h3 className="text-sm font-bold text-zinc-300">Your coffee pantry is empty</h3>
+                <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto mb-4">
+                  Add beans manually or click the button below to load 5 world-famous specialty origins instantly.
+                </p>
+                <button 
+                  onClick={seedBeansCatalog}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer">
+                  Seed World Specialty Beans
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {beans.map((bean) => {
+                  const isLow = bean.stock_grams < 30;
+                  return (
+                    <div key={bean.id} className={`bg-[#121215] border ${isLow ? 'border-red-500/50 bg-red-950/[0.04]' : 'border-zinc-800/80'} rounded-2xl p-5 space-y-4 flex flex-col justify-between`}>
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <h3 className="font-bold text-sm text-zinc-100 line-clamp-1">{exp.bean_name || 'Unknown Bean'}</h3>
-                            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
-                              <span className="text-amber-400 font-semibold">{exp.method || 'V60'}</span>
-                              <span>•</span>
-                              <span>{exp.roast_level || 'Medium'}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                              {bean.origin} • {bean.process}
+                            </span>
+                            <h3 className="text-sm font-bold text-white mt-1.5">{bean.name}</h3>
+                            <p className="text-xs text-zinc-400">{bean.roaster} ({bean.roast_level} Roast)</p>
+                          </div>
+                          <button 
+                            onClick={() => deleteBean(bean.id, bean.name)}
+                            className="text-zinc-600 hover:text-red-400 p-1 transition-colors cursor-pointer">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Stock Progress & Badge */}
+                        <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800/80 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400 font-medium">Stock Remaining:</span>
+                            <span className={`font-bold flex items-center gap-1 ${isLow ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                              {isLow && <AlertTriangle className="w-3 h-3" />}
+                              {bean.stock_grams}g
+                            </span>
+                          </div>
+                          <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${isLow ? 'bg-red-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${Math.min(100, (bean.stock_grams / 250) * 100)}%` }}>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={(e) => handleDelete(exp.id, exp.bean_name, e)}
-                              title="Delete Experiment"
-                              className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(exp.id)}
-                              className="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer"
-                            />
-                          </div>
+                          {isLow && (
+                            <p className="text-[10px] font-semibold text-red-400">
+                              ⚠️ Running low! Only ~{Math.floor(bean.stock_grams / 15)} brews left.
+                            </p>
+                          )}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-300 bg-[#09090b] p-2 rounded-xl border border-zinc-800/60 text-center mono">
-                          <div><span className="text-[9px] text-zinc-500 block">Dose</span>{exp.dose_grams || '-'}g</div>
-                          <div><span className="text-[9px] text-zinc-500 block">Water</span>{exp.water_grams || '-'}g</div>
-                          <div><span className="text-[9px] text-zinc-500 block">Ratio</span>{exp.ratio || '-'}</div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[11px] text-zinc-400 px-0.5">
-                          <div>Temp: <span className="text-zinc-200">{exp.water_temp_c ? `${exp.water_temp_c}°C` : '-'}</span></div>
-                          <div>Grind: <span className="text-zinc-200">{exp.grind_size || '-'}</span></div>
-                          {exp.rating && <div className="text-amber-400 font-bold">★ {exp.rating}/10</div>}
-                        </div>
-
-                        {exp.sensory_notes && exp.sensory_notes.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-0.5">
-                            {exp.sensory_notes.map((note, idx) => (
-                              <span key={idx} className="bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded text-[10px]">
+                        {/* Sensory Notes */}
+                        {bean.flavor_notes && bean.flavor_notes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {bean.flavor_notes.map((note, idx) => (
+                              <span key={idx} className="text-[10px] bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-700/50">
                                 {note}
                               </span>
                             ))}
@@ -438,18 +753,28 @@ export default function App() {
                         )}
                       </div>
 
-                      <div className="text-[10px] text-zinc-500 border-t border-zinc-800/60 pt-2 line-clamp-2 italic">
-                        "{exp.raw_notes}"
+                      {/* Quick Adjust Buttons */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/60">
+                        <button 
+                          onClick={() => updateStock(bean.id, Math.max(0, bean.stock_grams - 15))}
+                          className="flex-1 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[11px] font-semibold border border-zinc-800 transition-colors cursor-pointer">
+                          -15g (1 Brew)
+                        </button>
+                        <button 
+                          onClick={() => updateStock(bean.id, bean.stock_grams + 200)}
+                          className="flex-1 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[11px] font-semibold border border-zinc-800 transition-colors cursor-pointer">
+                          +200g (Bag)
+                        </button>
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
-
+                })}
+              </div>
+            )}
           </div>
+        )}
 
-        </div>
+
       </main>
 
       {/* Sticky Bottom Compare Bar */}
@@ -595,4 +920,5 @@ export default function App() {
 
     </div>
   );
+  
 }

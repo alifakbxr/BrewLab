@@ -27,4 +27,26 @@ class RawBrewInput(SQLModel):
 class CompareRequest(SQLModel):
     experiment_id_a: int
     experiment_id_b: int
+
+class CoffeeBean(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(description="Bean Name, e.g. Ethiopian Yirgacheffe")
+    origin: Optional[str] = Field(default="Unknown", description="Country/Region of origin")
+    roaster: Optional[str] = Field(default="Unknown", description="Roaster Name")
+    roaster_level: Optional[str] = Field(default="Medium", description="Light, Medium, Dark")
+    process: Optional[str] = Field(default="Washed", description="Washed, Honey, Natural, Anaerobic")
+    flavor_notes: List[str] = Field(default_factory=list, sa_column=Column(JSON), description="Flavor Notes")
+    stock_grams: float = Field(default=200.0, description="Remaining bean stock in grams")
+    is_favorite: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CoffeeBeanCreate(SQLModel):
+    name:str
+    origin: Optional[str] = 'Unknown'
+    roaster: Optional[str] = 'Unknown'
+    roast_level: Optional[str] = 'Medium'
+    process: Optional[str] = 'Washed'
+    flavor_notes: List[str] = []
+    stock_grams: float = 200.0
+
     

@@ -8,8 +8,16 @@ from sqlmodel import Session, select
 from typing import List
 
 from database import create_db_and_tables, get_session
-from models import BrewExperiment, BrewExperimentBase, RawBrewInput, CompareRequest
+from models import (
+    BrewExperiment, 
+    BrewExperimentBase, 
+    RawBrewInput, 
+    CompareRequest,
+    CoffeeBean,
+    CoffeeBeanCreate,
+)
 from ai import extract_brew_parameters, analyze_comparison, generate_daily_recipe
+from curated_data import CHAMPION_RECIPES, CURATED_BEANS
 
 app = FastAPI(title="Brew API", version="0.1.0")
 
@@ -86,6 +94,16 @@ async def capture_experiment(payload: RawBrewInput, session: Session = Depends(g
         valid_fields = BrewExperiment.model_fields.keys()
         filtered_dict = {k: v for k, v in extract_dict.items() if k in valid_fields}
         experiment = BrewExperiment(**filtered_dict)
+
+
+        if experiment.bean_name and experiment.dose_grams:
+            beans = session.exec(select(CoffeeBean)).all()
+            for b in beans:
+                if b.name.lower() in experiment.bean_name.lower() or experiment.bean_name.lower() in b.name.lower():
+                    b.stock_grams = max(0.0, b.stock_grams - experiment.dose_grams)
+                    session.add(b)
+                    break
+
         session.add(experiment)
         session.commit()
         session.refresh(experiment)
@@ -138,13 +156,18 @@ async def compare_experiments(payload: CompareRequest, session: Session = Depend
 @app.get("/api/feed/daily-recipe")
 async def get_daily_recipe(session: Session = Depends(get_session)):
     """
-    Menghasilkan resep harian berbasis preferensi histori seduhan user
+    Menghasilkan resep harian berbasis biji kopi di stok user dan riwayat terbaik mereka.
     """
-
     all_experiments = session.exec(select(BrewExperiment)).all()
     history = [exp.model_dump() for exp in all_experiments]
-    recipe = await generate_daily_recipe(history)
+    
+    # Ambil biji kopi dari inventory
+    beans = session.exec(select(CoffeeBean)).all()
+    bean_dicts = [b.model_dump() for b in beans]
+
+    recipe = await generate_daily_recipe(history, available_beans=bean_dicts)
     return recipe
+
 
 @app.get("/api/experiments/export/json")
 def export_experiments_json(session: Session = Depends(get_session)):
@@ -185,3 +208,79 @@ def delete_experiments(experiment_id: int, session: Session = Depends(get_sessio
     session.commit()
     
     return {"message": f"Eksperimen #{experiment_id} berhasil dihapus"}
+
+@app.get('/api/recipes/champions')
+def list_champion_recipes():
+    """
+    Return curated World Barista & Brewers Cup Championship recipes from 2000 to present
+    """
+
+    return CHAMPION_RECIPES
+
+@app.get('/api/beans', response_model=List[CoffeeBean])
+def list_beans(session: Session = Depends(get_session)):
+    """
+    List all coffe beans in users pantry/inventory with remaining stock.
+    """
+
+    return session.exec(select(CoffeeBean).order_by(CoffeeBean.stock_grams.asc())).all()
+
+@app.post('/api/beans', response_model=CoffeeBean)
+def create_bean(payload: CoffeeBeanCreate, session: Session =  Depends(get_session)):
+    """
+    Manually add a new coffee bag to inventory
+    """
+
+    bean = CoffeeBean(**payload.model_dump())
+    session.add(bean)
+    session.commit()
+    session.refresh(bean)
+    return bean
+
+@app.post('/api/beans/seed-catalog')
+def seed_curated_beans(session: Session = Depends(get_session)):
+    """
+    1-Click Zero-file Import: Seeds curated world speciality beans if not present.
+    """
+
+    added_count = 0
+    for item in CURATED_BEANS:
+        existing = session.exec(select(CoffeeBean).where(CoffeeBean.name == item['name'])).first()
+        if not existing:
+            bean = CoffeeBean(**item)
+            session.add(bean)
+            added_count += 1
+    
+    session.commit()
+    return {
+        "message": f"Berhasil menambahkan {added_count} speciality beans baru ke dalam inventaris."
+    }
+
+@app.patch('/api/beans/{bean_id}/stock')
+def update_bean_stock(bean_id: int, stock_grams: float, session: Session = Depends(get_session)):
+    """
+    Update remaining grams for bean bag
+    """
+
+    bean = session.get(CoffeeBean, bean_id)
+    if not bean:
+        raise HTTPException(status_code=404, detail="Coffee bean not found")
+    bean.stock_grams = max(0.0, stock_grams)
+    session.add(bean)
+    session.commit()
+    session.refresh(bean)
+    return bean
+    
+@app.delete('/api/beans/{bean_id}')
+def delete_bean(bean_id: int, session: Session = Depends(get_session)):
+    """
+    Remove a bean from patry
+    """
+
+    bean = session.get(CoffeeBean, bean_id)
+    if not bean:
+        raise HTTPException(status_code=404, detail="Coffee bean not found")
+    session.delete(bean)
+    session.commit()
+    return {"message": "Coffee bean successfully deleted"}
+
