@@ -95,7 +95,7 @@ async def extract_brew_parameters(raw_text: str, model_name: str = DEFAULT_MODEL
                 raw_content = raw_content[4:].strip()
 
 
-        parsed_data = json.loads(raw_content)
+        parsed_data = json.loads(clean_json_string(raw_content))
         parsed_data['raw_notes'] = raw_text
         return parsed_data
 

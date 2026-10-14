@@ -1,15 +1,25 @@
+import re
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from typing import List
-
 
 from database import create_db_and_tables, get_session
 from models import BrewExperiment, BrewExperimentBase, RawBrewInput, CompareRequest
 from ai import extract_brew_parameters, analyze_comparison, generate_daily_recipe
 
 app = FastAPI(title="Brew API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -19,15 +29,34 @@ def on_startup():
 
 @app.get("/")
 def read_root():
-    return FileResponse("static/index.html")
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+    return {
+        "name": "Brewlab API",
+        "status": "Online",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
 
 @app.get("/api/experiments", response_model=List[BrewExperiment])
 def list_experiments(session: Session = Depends(get_session)):
     experiments = session.exec(select(BrewExperiment).order_by(BrewExperiment.created_at.desc())).all()
     return experiments
+
+
+def parse_float_safe(val):
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    match = re.search(r"[-+]?\d*\.?\d+", str(val))
+    return float(match.group(0)) if match else None
+
+def parse_int_safe(val):
+    if val is None:
+        return None
+    if isinstance(val, int):
+        return val
+    match = re.search(r"\d+", str(val))
+    return int(match.group(0)) if match else None
 
 
 @app.post("/api/experiments/capture", response_model=BrewExperiment)
@@ -36,8 +65,27 @@ async def capture_experiment(payload: RawBrewInput, session: Session = Depends(g
     Menerima catatan bebas, Mengekstrak via AI, lalu menyimpan ke database.
     """
     try:
-        extract_dict= await extract_brew_parameters(payload.text)
-        experiment = BrewExperiment(**extract_dict)
+        extract_dict = await extract_brew_parameters(payload.text)
+        
+        # Normalisasi string/list
+        for str_field in ["bean_name", "roast_level", "method", "ratio", "grind_size"]:
+            if isinstance(extract_dict.get(str_field), list):
+                extract_dict[str_field] = ", ".join(str(item) for item in extract_dict[str_field])
+
+        # Sanitasi tipe data numerik
+        extract_dict["dose_grams"] = parse_float_safe(extract_dict.get("dose_grams"))
+        extract_dict["water_grams"] = parse_float_safe(extract_dict.get("water_grams"))
+        extract_dict["water_temp_c"] = parse_float_safe(extract_dict.get("water_temp_c"))
+        extract_dict["brew_time_seconds"] = parse_int_safe(extract_dict.get("brew_time_seconds"))
+        extract_dict["rating"] = parse_int_safe(extract_dict.get("rating"))
+
+        # Pastikan sensory_notes berupa list
+        if not isinstance(extract_dict.get("sensory_notes"), list):
+            extract_dict["sensory_notes"] = []
+
+        valid_fields = BrewExperiment.model_fields.keys()
+        filtered_dict = {k: v for k, v in extract_dict.items() if k in valid_fields}
+        experiment = BrewExperiment(**filtered_dict)
         session.add(experiment)
         session.commit()
         session.refresh(experiment)
@@ -45,6 +93,7 @@ async def capture_experiment(payload: RawBrewInput, session: Session = Depends(g
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mengekstrak catatan: {str(e)}")
+
     
 @app.get("/api/experiments/{experiment_id}", response_model=BrewExperiment)
 def get_experiment(experiment_id: int, session: Session = Depends(get_session)):
@@ -59,8 +108,8 @@ async def compare_experiments(payload: CompareRequest, session: Session = Depend
     Membandingkan 2 eksperimen seduh: menghasilkan diff parameter + analisa Explain & Audit dari AI.
     """
 
-    exp_a = session.get(BrewExperiment, payload.expreiment_id_a)
-    exp_b = session.get(BrewExperiment, payload.expreiment_id_b)
+    exp_a = session.get(BrewExperiment, payload.experiment_id_a)
+    exp_b = session.get(BrewExperiment, payload.experiment_id_b)
 
     if not exp_a or not exp_b:
         raise HTTPException(status_code=404, detail="Satu atau kedua eksperimen tidak ditemukan")
@@ -73,6 +122,8 @@ async def compare_experiments(payload: CompareRequest, session: Session = Depend
         "water_delta": (exp_b.water_grams or 0) - (exp_a.water_grams or 0) if exp_a.water_grams and exp_b.water_grams else None,
         "temp_delta": (exp_b.water_temp_c or 0) - (exp_a.water_temp_c or 0) if exp_a.water_temp_c and exp_b.water_temp_c else None,
         "time_delta": (exp_b.brew_time_seconds or 0) - (exp_a.brew_time_seconds or 0) if exp_a.brew_time_seconds and exp_b.brew_time_seconds else None,
+        "ratio_a": exp_a.ratio,
+        "ratio_b": exp_b.ratio,
     }
 
     ai_analysis = await analyze_comparison(dict_a, dict_b)

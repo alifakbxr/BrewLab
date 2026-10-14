@@ -1,8 +1,35 @@
+# Python & Virtualenv
 .venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite Database & Backups
 *.db
+*.sqlite
+*.sqlite3
+
+# Environment Variables & Secrets
 .env
+.env.*
+!.env.example
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+node_modules/
+dist/
+
+# Project memory & Agent config
 .agents/
-.vscode/
 PROJECT_STATE.md
-.db
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo

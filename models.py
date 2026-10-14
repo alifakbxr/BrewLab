@@ -25,6 +25,6 @@ class RawBrewInput(SQLModel):
     text: str = Field(..., max_length=2000, description="Raw notes from user, max 2000 characters")
 
 class CompareRequest(SQLModel):
-    expreiment_id_a: int
-    expreiment_id_b: int
+    experiment_id_a: int
+    experiment_id_b: int
     
