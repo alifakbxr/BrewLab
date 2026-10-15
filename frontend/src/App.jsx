@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Coffee, Sparkles, Scale, Trash2, Download, Upload, 
   Search, RefreshCw, X, ArrowRight, Lightbulb, Stethoscope, Target, Check,
-  Trophy, AlertTriangle, Plus, Package
+  Trophy, AlertTriangle, Plus, Package, SlidersHorizontal, Flame, Droplets, Clock
 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 export default function App() {
@@ -408,12 +413,13 @@ export default function App() {
 
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-xs font-medium text-zinc-400 truncate max-w-[200px]">{captureStatus}</span>
-                    <button
+                    <Button
                       type="submit"
                       disabled={isCapturing || !rawText.trim()}
-                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer">
-                      {isCapturing ? 'Extracting with AI...' : 'Extract & Save'}
-                    </button>
+                      className="h-9 px-4 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-sm transition-all">
+                      {isCapturing ? 'Analyzing with AI...' : 'Extract & Save Brew'}
+                    </Button>
+
                   </div>
                 </form>
               </section>
@@ -513,64 +519,88 @@ export default function App() {
                   filteredExperiments.map(exp => {
                     const isSelected = selectedIds.includes(exp.id);
                     return (
-                      <div
+                      <Card 
                         key={exp.id}
                         onClick={() => toggleSelect(exp.id)}
-                        className={`cursor-pointer bg-[#121215] border ${isSelected ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-500/[0.02]' : 'border-zinc-800/80'} rounded-2xl p-4 space-y-3 hover:border-zinc-700 transition-all flex flex-col justify-between`}>
+                        className={`transition-all duration-200 cursor-pointer ${
+                          isSelected 
+                            ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/30' 
+                            : 'border-zinc-800/80 bg-[#0f1117] hover:border-zinc-700'
+                        }`}>
+                        <CardHeader className="p-4 pb-2 flex-row items-start justify-between space-y-0">
+                          <div>
+                            <CardTitle className="text-sm font-semibold tracking-tight text-zinc-100 line-clamp-1">
+                              {exp.bean_name || 'Unknown Bean'}
+                            </CardTitle>
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <Badge variant="default" className="text-[10px] py-0 px-1.5 font-mono">
+                                {exp.method || 'V60'}
+                              </Badge>
+                              <span className="text-zinc-600 text-xs">•</span>
+                              <span className="text-[11px] text-zinc-400 font-medium">{exp.roast_level || 'Medium'}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={(e) => handleDelete(exp.id, exp.bean_name, e)}
+                              className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-zinc-800">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Checkbox 
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(exp.id)}
+                            />
+                          </div>
+                        </CardHeader>
 
-                        <div className="space-y-2.5">
-                          <div className="flex items-start justify-between gap-2">
+                        <CardContent className="p-4 pt-1 space-y-3">
+                          {/* Clean Monospace Lab Metrics Bar */}
+                          <div className="grid grid-cols-3 gap-1.5 p-2 rounded-lg bg-[#090a0d] border border-zinc-800/80 text-center mono text-xs">
                             <div>
-                              <h3 className="font-bold text-sm text-zinc-100 line-clamp-1">{exp.bean_name || 'Unknown Bean'}</h3>
-                              <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 pt-0.5">
-                                <span className="text-amber-400 font-semibold">{exp.method || 'V60'}</span>
-                                <span>•</span>
-                                <span>{exp.roast_level || 'Medium'}</span>
-                              </div>
+                              <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">Dose</span>
+                              <span className="font-semibold text-zinc-200">{exp.dose_grams || '-'}g</span>
                             </div>
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={(e) => handleDelete(exp.id, exp.bean_name, e)}
-                                title="Delete Experiment"
-                                className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800/80 transition-colors text-xs">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleSelect(exp.id)}
-                                className="w-4 h-4 rounded accent-amber-500 bg-zinc-800 border-zinc-700 cursor-pointer"
-                              />
+                            <div>
+                              <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">Water</span>
+                              <span className="font-semibold text-zinc-200">{exp.water_grams || '-'}g</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">Ratio</span>
+                              <span className="font-semibold text-amber-400">{exp.ratio || '-'}</span>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-300 bg-[#09090b] p-2 rounded-xl border border-zinc-800/60 text-center mono">
-                            <div><span className="text-[9px] text-zinc-500 block">Dose</span>{exp.dose_grams || '-'}g</div>
-                            <div><span className="text-[9px] text-zinc-500 block">Water</span>{exp.water_grams || '-'}g</div>
-                            <div><span className="text-[9px] text-zinc-500 block">Ratio</span>{exp.ratio || '-'}</div>
+                          {/* Secondary Metrics */}
+                          <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                            <span>{exp.water_temp_c ? `${exp.water_temp_c}°C` : 'Temp -'}</span>
+                            <span>{exp.grind_size || 'Grind -'}</span>
+                            {exp.rating && (
+                              <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                ★ {exp.rating}/10
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex items-center justify-between text-[11px] text-zinc-400 px-0.5">
-                            <div>Temp: <span className="text-zinc-200">{exp.water_temp_c ? `${exp.water_temp_c}°C` : '-'}</span></div>
-                            <div>Grind: <span className="text-zinc-200">{exp.grind_size || '-'}</span></div>
-                            {exp.rating && <div className="text-amber-400 font-bold">★ {exp.rating}/10</div>}
-                          </div>
-
+                          {/* Flavor Notes Badges */}
                           {exp.sensory_notes && exp.sensory_notes.length > 0 && (
                             <div className="flex flex-wrap gap-1 pt-0.5">
                               {exp.sensory_notes.map((note, idx) => (
-                                <span key={idx} className="bg-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded text-[10px]">
+                                <Badge key={idx} variant="secondary" className="text-[10px] font-normal text-zinc-300 bg-zinc-900 border border-zinc-800">
                                   {note}
-                                </span>
+                                </Badge>
                               ))}
                             </div>
                           )}
-                        </div>
 
-                        <div className="text-[10px] text-zinc-500 border-t border-zinc-800/60 pt-2 line-clamp-2 italic">
-                          "{exp.raw_notes}"
-                        </div>
-                      </div>
+                          <div className="text-[10px] text-zinc-500 border-t border-zinc-800/60 pt-2 line-clamp-2 italic font-sans">
+                            &ldquo;{exp.raw_notes}&rdquo;
+                          </div>
+                        </CardContent>
+                      </Card>
+
                     );
                   })
                 )}
@@ -675,12 +705,13 @@ export default function App() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button 
+                <Button 
+                  variant="emerald"
                   onClick={seedBeansCatalog}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  Load Curated World Catalog
-                </button>
+                  className="h-9 px-3.5 text-xs font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Load Curated World Catalog
+                </Button>
+
               </div>
             </div>
 
@@ -793,11 +824,12 @@ export default function App() {
               className="px-3 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 text-xs font-medium cursor-pointer">
               Cancel
             </button>
-            <button
+            <Button 
               onClick={handleCompare}
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/30 flex items-center gap-1.5 transition-all cursor-pointer">
-              Compare & Audit Now <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              className="h-9 px-4 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-md flex items-center gap-1.5">
+              Compare & Audit <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+
           </div>
         </div>
       </div>
